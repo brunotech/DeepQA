@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.10/ref/settings/
 """
 
+
 import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -106,10 +107,10 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "asgi_redis.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [os.environ.get('REDIS_URL', 'redis://{}:6379'.format(redis_url))],
+            "hosts": [os.environ.get('REDIS_URL', f'redis://{redis_url}:6379')]
         },
         "ROUTING": "chatbot_interface.routing.channel_routing",
-    },
+    }
 }
 
 LOGGING = {

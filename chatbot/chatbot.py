@@ -66,12 +66,12 @@ class Chatbot:
         self.sess = None
 
         # Filename and directories constants
-        self.MODEL_DIR_BASE = 'save' + os.sep + 'model'
+        self.MODEL_DIR_BASE = f'save{os.sep}model'
         self.MODEL_NAME_BASE = 'model'
         self.MODEL_EXT = '.ckpt'
         self.CONFIG_FILENAME = 'params.ini'
         self.CONFIG_VERSION = '0.5'
-        self.TEST_IN_NAME = 'data' + os.sep + 'test' + os.sep + 'samples.txt'
+        self.TEST_IN_NAME = f'data{os.sep}test{os.sep}samples.txt'
         self.TEST_OUT_SUFFIX = '_predictions.txt'
         self.SENTENCES_PREFIX = ['Q: ', 'A: ']
 
@@ -142,7 +142,7 @@ class Chatbot:
         """
         print('Welcome to DeepQA v0.1 !')
         print()
-        print('TensorFlow detected: v{}'.format(tf.__version__))
+        print(f'TensorFlow detected: v{tf.__version__}')
 
         # General initialisation
 
@@ -209,7 +209,7 @@ class Chatbot:
             elif self.args.test == Chatbot.TestMode.DAEMON:
                 print('Daemon mode, running in background...')
             else:
-                raise RuntimeError('Unknown test mode: {}'.format(self.args.test))  # Should never happen
+                raise RuntimeError(f'Unknown test mode: {self.args.test}')
         else:
             self.mainTrain(self.sess)
 
@@ -239,7 +239,9 @@ class Chatbot:
             for e in range(self.args.numEpochs):
 
                 print()
-                print("----- Epoch {}/{} ; (lr={}) -----".format(e+1, self.args.numEpochs, self.args.learningRate))
+                print(
+                    f"----- Epoch {e + 1}/{self.args.numEpochs} ; (lr={self.args.learningRate}) -----"
+                )
 
                 batches = self.textData.getBatches()
 
@@ -265,7 +267,7 @@ class Chatbot:
 
                 toc = datetime.datetime.now()
 
-                print("Epoch finished in {}".format(toc-tic))  # Warning: Will overflow if an epoch takes more than 24 hours, and the output isn't really nicer
+                print(f"Epoch finished in {toc - tic}")
         except (KeyboardInterrupt, SystemExit):  # If the user press Ctrl+C while testing progress
             print('Interruption detected, exiting the program...')
 
@@ -284,12 +286,14 @@ class Chatbot:
 
         modelList = self._getModelList()
         if not modelList:
-            print('Warning: No model found in \'{}\'. Please train a model before trying to predict'.format(self.modelDir))
+            print(
+                f"Warning: No model found in \'{self.modelDir}\'. Please train a model before trying to predict"
+            )
             return
 
         # Predicting for each model present in modelDir
         for modelName in sorted(modelList):  # TODO: Natural sorting
-            print('Restoring previous model from {}'.format(modelName))
+            print(f'Restoring previous model from {modelName}')
             self.saver.restore(sess, modelName)
             print('Testing...')
 
@@ -308,7 +312,9 @@ class Chatbot:
                     if self.args.verbose:
                         tqdm.write(predString)
                     f.write(predString)
-                print('Prediction finished, {}/{} sentences ignored (too long)'.format(nbIgnored, len(lines)))
+                print(
+                    f'Prediction finished, {nbIgnored}/{len(lines)} sentences ignored (too long)'
+                )
 
     def mainTestInteractive(self, sess):
         """ Try predicting the sentences that the user will enter in the console
@@ -326,7 +332,7 @@ class Chatbot:
 
         while True:
             question = input(self.SENTENCES_PREFIX[0])
-            if question == '' or question == 'exit':
+            if question in ['', 'exit']:
                 break
 
             questionSeq = []  # Will be contain the question as seen by the encoder
@@ -361,9 +367,7 @@ class Chatbot:
         # Run the model
         ops, feedDict = self.model.step(batch)
         output = self.sess.run(ops[0], feedDict)  # TODO: Summarize the output too (histogram, ...)
-        answer = self.textData.deco2sentence(output)
-
-        return answer
+        return self.textData.deco2sentence(output)
 
     def daemonPredict(self, sentence):
         """ Return the answer to a given sentence (same as singlePredict() but with additional cleaning)
@@ -408,13 +412,13 @@ class Chatbot:
         # New model, we load the pre-trained word2vec data and initialize embeddings
         embeddings_path = os.path.join(self.args.rootDir, 'data', 'embeddings', self.args.embeddingSource)
         embeddings_format = os.path.splitext(embeddings_path)[1][1:]
-        print("Loading pre-trained word embeddings from %s " % embeddings_path)
+        print(f"Loading pre-trained word embeddings from {embeddings_path} ")
         with open(embeddings_path, "rb") as f:
             header = f.readline()
             vocab_size, vector_size = map(int, header.split())
             binary_len = np.dtype('float32').itemsize * vector_size
             initW = np.random.uniform(-0.25,0.25,(len(self.textData.word2id), vector_size))
-            for line in tqdm(range(vocab_size)):
+            for _ in tqdm(range(vocab_size)):
                 word = []
                 while True:
                     ch = f.read(1)
@@ -429,15 +433,14 @@ class Chatbot:
                     elif embeddings_format == 'vec':
                         vector = np.fromstring(f.readline(), sep=' ', dtype='float32')
                     else:
-                        raise Exception("Unkown format for embeddings: %s " % embeddings_format)
+                        raise Exception(f"Unkown format for embeddings: {embeddings_format} ")
                     initW[self.textData.word2id[word]] = vector
+                elif embeddings_format == 'bin':
+                    f.read(binary_len)
+                elif embeddings_format == 'vec':
+                    f.readline()
                 else:
-                    if embeddings_format == 'bin':
-                        f.read(binary_len)
-                    elif embeddings_format == 'vec':
-                        f.readline()
-                    else:
-                        raise Exception("Unkown format for embeddings: %s " % embeddings_format)
+                    raise Exception(f"Unkown format for embeddings: {embeddings_format} ")
 
         # PCA Decomposition to reduce word2vec dimensionality
         if self.args.embeddingSize < vector_size:
@@ -472,26 +475,31 @@ class Chatbot:
 
         if os.listdir(self.modelDir):
             if self.args.reset:
-                print('Reset: Destroying previous model at {}'.format(self.modelDir))
-            # Analysing directory content
+                print(f'Reset: Destroying previous model at {self.modelDir}')
             elif os.path.exists(modelName):  # Restore the model
-                print('Restoring previous model from {}'.format(modelName))
+                print(f'Restoring previous model from {modelName}')
                 self.saver.restore(sess, modelName)  # Will crash when --reset is not activated and the model has not been saved yet
             elif self._getModelList():
                 print('Conflict with previous models.')
-                raise RuntimeError('Some models are already present in \'{}\'. You should check them first (or re-try with the keepAll flag)'.format(self.modelDir))
+                raise RuntimeError(
+                    f"Some models are already present in \'{self.modelDir}\'. You should check them first (or re-try with the keepAll flag)"
+                )
             else:  # No other model to conflict with (probably summary files)
-                print('No previous model found, but some files found at {}. Cleaning...'.format(self.modelDir))  # Warning: No confirmation asked
+                print(
+                    f'No previous model found, but some files found at {self.modelDir}. Cleaning...'
+                )
                 self.args.reset = True
 
             if self.args.reset:
                 fileList = [os.path.join(self.modelDir, f) for f in os.listdir(self.modelDir)]
                 for f in fileList:
-                    print('Removing {}'.format(f))
+                    print(f'Removing {f}')
                     os.remove(f)
 
         else:
-            print('No previous model found, starting from clean directory: {}'.format(self.modelDir))
+            print(
+                f'No previous model found, starting from clean directory: {self.modelDir}'
+            )
 
     def _saveSession(self, sess):
         """ Save the model parameters and the variables
@@ -522,7 +530,7 @@ class Chatbot:
         # Compute the current model path
         self.modelDir = os.path.join(self.args.rootDir, self.MODEL_DIR_BASE)
         if self.args.modelTag:
-            self.modelDir += '-' + self.args.modelTag
+            self.modelDir += f'-{self.args.modelTag}'
 
         # If there is a previous model, restore some parameters
         configName = os.path.join(self.modelDir, self.CONFIG_FILENAME)
@@ -560,21 +568,21 @@ class Chatbot:
             # Show the restored params
             print()
             print('Warning: Restoring parameters:')
-            print('globStep: {}'.format(self.globStep))
-            print('watsonMode: {}'.format(self.args.watsonMode))
-            print('autoEncode: {}'.format(self.args.autoEncode))
-            print('corpus: {}'.format(self.args.corpus))
-            print('datasetTag: {}'.format(self.args.datasetTag))
-            print('maxLength: {}'.format(self.args.maxLength))
-            print('filterVocab: {}'.format(self.args.filterVocab))
-            print('skipLines: {}'.format(self.args.skipLines))
-            print('vocabularySize: {}'.format(self.args.vocabularySize))
-            print('hiddenSize: {}'.format(self.args.hiddenSize))
-            print('numLayers: {}'.format(self.args.numLayers))
-            print('softmaxSamples: {}'.format(self.args.softmaxSamples))
-            print('initEmbeddings: {}'.format(self.args.initEmbeddings))
-            print('embeddingSize: {}'.format(self.args.embeddingSize))
-            print('embeddingSource: {}'.format(self.args.embeddingSource))
+            print(f'globStep: {self.globStep}')
+            print(f'watsonMode: {self.args.watsonMode}')
+            print(f'autoEncode: {self.args.autoEncode}')
+            print(f'corpus: {self.args.corpus}')
+            print(f'datasetTag: {self.args.datasetTag}')
+            print(f'maxLength: {self.args.maxLength}')
+            print(f'filterVocab: {self.args.filterVocab}')
+            print(f'skipLines: {self.args.skipLines}')
+            print(f'vocabularySize: {self.args.vocabularySize}')
+            print(f'hiddenSize: {self.args.hiddenSize}')
+            print(f'numLayers: {self.args.numLayers}')
+            print(f'softmaxSamples: {self.args.softmaxSamples}')
+            print(f'initEmbeddings: {self.args.initEmbeddings}')
+            print(f'embeddingSize: {self.args.embeddingSize}')
+            print(f'embeddingSource: {self.args.embeddingSource}')
             print()
 
         # For now, not arbitrary  independent maxLength between encoder and decoder
@@ -638,7 +646,7 @@ class Chatbot:
         """
         modelName = os.path.join(self.modelDir, self.MODEL_NAME_BASE)
         if self.args.keepAll:  # We do not erase the previously saved model by including the current step on the name
-            modelName += '-' + str(self.globStep)
+            modelName += f'-{str(self.globStep)}'
         return modelName + self.MODEL_EXT
 
     def getDevice(self):
@@ -653,5 +661,7 @@ class Chatbot:
         elif self.args.device is None:  # No specified device (default)
             return None
         else:
-            print('Warning: Error in the device name: {}, use the default device'.format(self.args.device))
+            print(
+                f'Warning: Error in the device name: {self.args.device}, use the default device'
+            )
             return None

@@ -30,7 +30,7 @@ class OpensubsData:
         # Hack this to filter on subset of Opensubtitles
         # dirName = "%s/en/Action" % dirName
 
-        print("Loading OpenSubtitles conversations in %s." % dirName)
+        print(f"Loading OpenSubtitles conversations in {dirName}.")
         self.conversations = []
         self.tag_re = re.compile(r'(<!--.*?-->|<[^>]*>)')
         self.conversations = self.loadConversations(dirName)
@@ -50,7 +50,7 @@ class OpensubsData:
                     doc = self.getXML(filepath)
                     conversations.extend(self.genList(doc))
                 except ValueError:
-                    tqdm.write("Skipping file %s with errors." % filepath)
+                    tqdm.write(f"Skipping file {filepath} with errors.")
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
                     raise
@@ -81,18 +81,16 @@ class OpensubsData:
                         strbuf = ''
                 else:
                     try:
-                        strbuf = strbuf + " " + elem.text
+                        strbuf = f"{strbuf} {elem.text}"
                     except:
                         pass
 
         conversations = []
-        for idx in range(0, len(sentList) - 1):
+        for idx in range(len(sentList) - 1):
             cur = sentList[idx]
             nxt = sentList[idx + 1]
             if nxt[1] - cur[2] <= maxDelta and cur and nxt:
-                tmp = {}
-                tmp["lines"] = []
-                tmp["lines"].append(self.getLine(cur[0]))
+                tmp = {"lines": [self.getLine(cur[0])]}
                 tmp["lines"].append(self.getLine(nxt[0]))
                 if self.filter(tmp):
                     conversations.append(tmp)
@@ -100,9 +98,12 @@ class OpensubsData:
         return conversations
 
     def getLine(self, sentence):
-        line = {}
-        line["text"] = self.tag_re.sub('', sentence).replace('\\\'','\'').strip().lower()
-        return line
+        return {
+            "text": self.tag_re.sub('', sentence)
+            .replace('\\\'', '\'')
+            .strip()
+            .lower()
+        }
 
     def filter(self, lines):
         # Use the followint to customize filtering of QA pairs
@@ -118,11 +119,10 @@ class OpensubsData:
 
     def getXML(self, filepath):
         fext = os.path.splitext(filepath)[1]
-        if fext == '.gz':
-            tmp = GzipFile(filename=filepath)
-            return ET.parse(tmp)
-        else:
+        if fext != '.gz':
             return ET.parse(filepath)
+        tmp = GzipFile(filename=filepath)
+        return ET.parse(tmp)
 
     def filesInDir(self, dirname):
         result = []

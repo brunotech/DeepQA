@@ -40,7 +40,7 @@ class ProjectionOp:
         self.scope = scope
 
         # Projection on the keyboard
-        with tf.variable_scope('weights_' + self.scope):
+        with tf.variable_scope(f'weights_{self.scope}'):
             self.W_t = tf.get_variable(
                 'weights',
                 shape,
@@ -151,6 +151,7 @@ class Model:
                     output_keep_prob=self.args.dropout
                 )
             return encoDecoCell
+
         encoDecoCell = tf.contrib.rnn.MultiRNNCell(
             [create_rnn_cell() for _ in range(self.args.numLayers)],
         )
@@ -184,14 +185,13 @@ class Model:
 
         # For testing only
         if self.args.test:
-            if not outputProjection:
-                self.outputs = decoderOutputs
-            else:
-                self.outputs = [outputProjection(output) for output in decoderOutputs]
+            self.outputs = (
+                [outputProjection(output) for output in decoderOutputs]
+                if outputProjection
+                else decoderOutputs
+            )
+                # TODO: Attach a summary to visualize the output
 
-            # TODO: Attach a summary to visualize the output
-
-        # For training only
         else:
             # Finally, we define the loss function
             self.lossFct = tf.contrib.legacy_seq2seq.sequence_loss(
@@ -221,13 +221,13 @@ class Model:
             (ops), dict: A tuple of the (training, loss) operators or (outputs,) in testing mode with the associated feed dictionary
         """
 
-        # Feed the dictionary
-        feedDict = {}
         ops = None
 
+        feedDict = {
+            self.encoderInputs[i]: batch.encoderSeqs[i]
+            for i in range(self.args.maxLengthEnco)
+        }
         if not self.args.test:  # Training
-            for i in range(self.args.maxLengthEnco):
-                feedDict[self.encoderInputs[i]]  = batch.encoderSeqs[i]
             for i in range(self.args.maxLengthDeco):
                 feedDict[self.decoderInputs[i]]  = batch.decoderSeqs[i]
                 feedDict[self.decoderTargets[i]] = batch.targetSeqs[i]
@@ -235,8 +235,6 @@ class Model:
 
             ops = (self.optOp, self.lossFct)
         else:  # Testing (batchSize == 1)
-            for i in range(self.args.maxLengthEnco):
-                feedDict[self.encoderInputs[i]]  = batch.encoderSeqs[i]
             feedDict[self.decoderInputs[0]]  = [self.textData.goToken]
 
             ops = (self.outputs,)

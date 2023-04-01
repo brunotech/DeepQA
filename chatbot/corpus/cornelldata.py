@@ -59,11 +59,7 @@ class CornellData:
             for line in f:
                 values = line.split(" +++$+++ ")
 
-                # Extract fields
-                lineObj = {}
-                for i, field in enumerate(fields):
-                    lineObj[field] = values[i]
-
+                lineObj = {field: values[i] for i, field in enumerate(fields)}
                 lines[lineObj['lineID']] = lineObj
 
         return lines
@@ -82,11 +78,7 @@ class CornellData:
             for line in f:
                 values = line.split(" +++$+++ ")
 
-                # Extract fields
-                convObj = {}
-                for i, field in enumerate(fields):
-                    convObj[field] = values[i]
-
+                convObj = {field: values[i] for i, field in enumerate(fields)}
                 # Convert string to list (convObj["utteranceIDs"] == "['L598485', 'L598486', ...]")
                 lineIds = ast.literal_eval(convObj["utteranceIDs"])
 

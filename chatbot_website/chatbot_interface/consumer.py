@@ -17,7 +17,7 @@ def _getClientName(client):
     Return:
         str: the id associated with the client
     """
-    return 'room-' + client[0] + '-' + str(client[1])
+    return f'room-{client[0]}-{str(client[1])}'
 
 
 @channel_session
@@ -28,7 +28,7 @@ def ws_connect(message):
     """
     if message['path'] == '/chat':  # Check we are on the right channel
         clientName = _getClientName(message['client'])
-        logger.info('New client connected: {}'.format(clientName))
+        logger.info(f'New client connected: {clientName}')
         Group(clientName).add(message.reply_channel)  # Answer back to the client
         message.channel_session['room'] = clientName
         message.reply_channel.send({'accept': True})
@@ -49,7 +49,7 @@ def ws_receive(message):
     try:
         answer = ChatbotManager.callBot(question)
     except:  # Catching all possible mistakes
-        logger.error('{}: Error with this question {}'.format(clientName, question))
+        logger.error(f'{clientName}: Error with this question {question}')
         logger.error("Unexpected error:", sys.exc_info()[0])
         answer = 'Error: Internal problem'
 
@@ -57,7 +57,7 @@ def ws_receive(message):
     if not answer:
         answer = 'Error: Try a shorter sentence'
 
-    logger.info('{}: {} -> {}'.format(clientName, question, answer))
+    logger.info(f'{clientName}: {question} -> {answer}')
 
     # Send the prediction back
     Group(clientName).send({'text': json.dumps({'message': answer})})
@@ -69,5 +69,5 @@ def ws_disconnect(message):
         message (Obj): object containing the client query
     """
     clientName = message.channel_session['room']
-    logger.info('Client disconnected: {}'.format(clientName))
+    logger.info(f'Client disconnected: {clientName}')
     Group(clientName).discard(message.reply_channel)
